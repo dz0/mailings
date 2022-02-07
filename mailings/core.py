@@ -121,7 +121,3 @@ class ReminderMailer:
             self.smtp = smtplib.SMTP("localhost")
 
         self.smtp.sendmail(from_addr, to_addrs, msg)
-
-
-def process_data():
-    ...
