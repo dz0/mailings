@@ -6,6 +6,7 @@ from datetime import date
 from typing import Optional, Any, NamedTuple, List, Tuple, Iterator
 from pydantic.dataclasses import dataclass
 from pydantic.types import conint, constr
+from retry import retry
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -114,6 +115,7 @@ class ReminderMailer:
             msg = self.TPL % params
             self.sendmail(from_addr="info@bla.bla", to_addrs=[to_user.email], msg=msg)
 
+    @retry(exceptions=Exception, tries=3)
     def sendmail(self, from_addr: str, to_addrs: List[str], msg: str):
         # can be overriden
 
