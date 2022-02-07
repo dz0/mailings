@@ -1,8 +1,9 @@
 import csv
 import logging
+import smtplib
 
 from datetime import date
-from typing import Optional, Any, NamedTuple, List
+from typing import Optional, Any, NamedTuple, List, Tuple, Iterator
 from pydantic.dataclasses import dataclass
 from pydantic.types import conint, constr
 
@@ -76,12 +77,50 @@ def do_validate(data: List[List[str]]):
         print(f"{' | '.join(e.value)}: \n  => {e.error} \n")
 
 
-def find_reminders(users: List[User], days_before=7):
+def find_reminders(users: List[User], days_before=7) -> Iterator[Tuple[User, User]]:
     selected = [x for x in users if (x.birthday.upcomming() - TODAY).days <= days_before]
-    for about_user in selected:
-        receivers = [x for x in users if x != about_user]
+    for bday_user in selected:
+        receivers = [x for x in users if x != bday_user]
         for to_user in receivers:
-            yield to_user, about_user
+            yield to_user, bday_user
+
+
+class ReminderMailer:
+    smtp: smtplib.SMTP = None  # for testing purposes not initialized
+
+    TPL = """Subject: Birthday Reminder: %(name_of_birthday_person)s's birthday on %(date)s
+    Body:
+
+    Hi %(name)s,
+
+    This is a reminder that %(name_of_birthday_person)s will be celebrating their
+    birthday on %(date)s.
+
+    There are %(amount_of_days)s left to get a present!"""
+
+    def send_reminders(self, users: List[User]):
+        for to_user, bday_user in find_reminders(users):
+            logging.getLogger(__name__).info(
+                f"mailing bday reminder about {bday_user.name} {bday_user.birthday.upcomming()} to  {to_user.email}"
+            )
+
+            params = dict(
+                name=to_user.name,
+                name_of_birthday_person=bday_user.name,
+                date=bday_user.birthday.upcomming(),
+                amount_of_days=(bday_user.birthday.upcomming() - TODAY).days,
+            )
+
+            msg = self.TPL % params
+            self.sendmail(from_addr="info@bla.bla", to_addrs=[to_user.email], msg=msg)
+
+    def sendmail(self, from_addr: str, to_addrs: List[str], msg: str):
+        # can be overriden
+
+        if self.smtp is None:
+            self.smtp = smtplib.SMTP("localhost")
+
+        self.smtp.sendmail(from_addr, to_addrs, msg)
 
 
 def process_data():
