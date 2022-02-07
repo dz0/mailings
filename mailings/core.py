@@ -1,7 +1,7 @@
 import csv
 
 from datetime import date
-from typing import Optional
+from typing import Optional, Any, NamedTuple
 from pydantic.dataclasses import dataclass
 from pydantic.types import conint, constr
 
@@ -40,15 +40,22 @@ class User:
     birthday: Birthday
 
 
+class ErrorInfo(NamedTuple):
+    value: Any
+    error: Exception
+
+
 def validate_data_and_convert_into_objects(data: list):
     results = []
     errors = []
     for row in data:
-        # assert len(row) >= 3, "not enough values in row to unpack"
-        name, email, bday, *etc = row
-        user = User(name=name, email=email, birthday=Birthday.from_str(bday))
-        results.append(user)
-
+        try:
+            # assert len(row) >= 3, "not enough values in row to unpack"
+            name, email, bday, *etc = row
+            user = User(name=name, email=email, birthday=Birthday.from_str(bday))
+            results.append(user)
+        except Exception as e:
+            errors.append(ErrorInfo(row, e))
     return results, errors
 
 

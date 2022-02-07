@@ -50,6 +50,16 @@ class DataValidation(unittest.TestCase):
         # print(f"{users=} \n {errors=}")
         assert len(users) == 4
 
+    def test_parse_csv_data__nonvalid(self):
+        data = read_csv_rows(DATA_PATH / "data_with_errs.csv")
+        users, errors = validate_data_and_convert_into_objects(data)
+        # print(f"{users=} \n {errors=}")
+        assert len(users) == 3  # 1) OK, 2) too many fields, 3) nonvalid email
+
+        assert len(errors) == len(data) - len(users)
+        assert len(errors) > 10
+        assert {x.error.__class__.__name__ for x in errors} == {"ValueError", "ValidationError"}  # "AssertionError"
+
     def test_name_invalid_empty(self):
         bday = Birthday(None, "12", 29)
         with self.assertRaises(ValidationError) as cm:
