@@ -1,10 +1,18 @@
+from datetime import date
 from pathlib import Path
 
 import unittest
 
 from pydantic import ValidationError
 
-from mailings.core import read_csv_rows, validate_data_and_convert_into_objects, Birthday, User
+from mailings import core
+from mailings.core import (
+    read_csv_rows,
+    validate_data_and_convert_into_objects,
+    Birthday,
+    User,
+    find_reminders,
+)
 
 TESTS_ROOT_DIR = Path(__file__).resolve().parent
 DATA_PATH = TESTS_ROOT_DIR / "data"
@@ -105,3 +113,19 @@ class BirthdayValidation(unittest.TestCase):
             _ = Birthday(2030, 10, 20)
         assert "year" in str(cm.exception)
         assert "limit_value=2022" in str(cm.exception)
+
+
+class FindReminders(unittest.TestCase):
+    def test_call_reminder_all(self):
+        data = read_csv_rows(DATA_PATH / "data.csv")
+        users, errors = validate_data_and_convert_into_objects(data)
+        count_sent = len(list(find_reminders(users, days_before=366)))
+        assert count_sent == 4 * 3  # 4 bdays * 3 receivers
+
+    def test_call_reminder_some_match(self):
+        core.TODAY = date(2000, 12, 31)  # note: this does not affect Birthday validation of  dates in the future
+
+        data = read_csv_rows(DATA_PATH / "data.csv")
+        users, errors = validate_data_and_convert_into_objects(data)
+        count_sent = len(list(find_reminders(users, days_before=100)))
+        assert count_sent == 2 * 3  # 2 bdays * 3 receivers

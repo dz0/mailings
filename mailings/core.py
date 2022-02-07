@@ -1,9 +1,15 @@
 import csv
+import logging
 
 from datetime import date
-from typing import Optional, Any, NamedTuple
+from typing import Optional, Any, NamedTuple, List
 from pydantic.dataclasses import dataclass
 from pydantic.types import conint, constr
+
+logging.basicConfig(level=logging.DEBUG)
+
+TODAY = date.today()
+CURRENT_YEAR = TODAY.year
 
 
 def read_csv_rows(path) -> list:
@@ -12,14 +18,18 @@ def read_csv_rows(path) -> list:
         return list(reader)
 
 
-current_year = date.today().year
-
-
 @dataclass
 class Birthday:
-    year: Optional[conint(ge=current_year - 100, le=current_year)]
+    year: Optional[conint(ge=CURRENT_YEAR - 100, le=CURRENT_YEAR)]
     month: conint(ge=1, le=12)  # constrained-int https://pydantic-docs.helpmanual.io/usage/types/#constrained-types
     day: conint(ge=1, le=31)
+
+    def upcomming(self) -> date:
+        the_year = TODAY.year
+        if (self.month, self.day) <= (TODAY.month, TODAY.day):
+            the_year += 1  # next year
+
+        return date(the_year, self.month, self.day)  # fixme: potential err February 29
 
     @classmethod
     def from_str(cls, val: str) -> "Birthday":
@@ -57,6 +67,21 @@ def validate_data_and_convert_into_objects(data: list):
         except Exception as e:
             errors.append(ErrorInfo(row, e))
     return results, errors
+
+
+def do_validate(data: List[List[str]]):
+    _, errors = validate_data_and_convert_into_objects(data)
+    print(f"{len(errors)} errors out of {len(data)} records:")
+    for e in errors:
+        print(f"{' | '.join(e.value)}: \n  => {e.error} \n")
+
+
+def find_reminders(users: List[User], days_before=7):
+    selected = [x for x in users if (x.birthday.upcomming() - TODAY).days <= days_before]
+    for about_user in selected:
+        receivers = [x for x in users if x != about_user]
+        for to_user in receivers:
+            yield to_user, about_user
 
 
 def process_data():
